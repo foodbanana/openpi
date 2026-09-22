@@ -20,6 +20,7 @@ import openpi.models.tokenizer as _tokenizer
 import openpi.policies.aloha_policy as aloha_policy
 import openpi.policies.droid_policy as droid_policy
 import openpi.policies.libero_policy as libero_policy
+import openpi.policies.ur5_policy as ur5_policy
 import openpi.shared.download as _download
 import openpi.shared.normalize as _normalize
 import openpi.training.droid_rlds_dataset as droid_rlds_dataset
@@ -347,6 +348,59 @@ class LeRobotLiberoDataConfig(DataConfigFactory):
         model_transforms = ModelTransformFactory()(model_config)
 
         # We return all data transforms for training and inference. No need to change anything here.
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs, model_config),
+            repack_transforms=repack_transform,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class LeRobotUR5DataConfig(DataConfigFactory):
+    """UR5 (6-DoF arm + 1-DoF gripper) LeRobot dataset config.
+    Mirrors LeRobotLiberoDataConfig; only the repack keys and delta default differ.
+    """
+
+    # UR5 freedrive actions are absolute (next-frame joint targets),
+    # so convert arm joints to delta by default (gripper stays absolute).
+    extra_delta_transform: bool = True
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        # Map YOUR LeRobot dataset column names -> keys UR5Inputs expects.
+        #   observation.state                      -> observation/state
+        #   action                                 -> actions
+        #   observation.images.third_view (extern) -> observation/base_image
+        #   observation.images.head       (wrist)  -> observation/wrist_image
+        repack_transform = _transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "observation/state": "observation.state",
+                        "actions": "action",
+                        "observation/base_image": "observation.images.third_view",
+                        "observation/wrist_image": "observation.images.head",
+                    }
+                )
+            ]
+        )
+
+        data_transforms = _transforms.Group(
+            inputs=[ur5_policy.UR5Inputs(model_type=model_config.model_type)],
+            outputs=[ur5_policy.UR5Outputs()],
+        )
+
+        # UR5 arm actions are absolute -> delta for 6 joints, gripper (7th) absolute.
+        if self.extra_delta_transform:
+            delta_action_mask = _transforms.make_bool_mask(6, -1)
+            data_transforms = data_transforms.push(
+                inputs=[_transforms.DeltaActions(delta_action_mask)],
+                outputs=[_transforms.AbsoluteActions(delta_action_mask)],
+            )
+
+        model_transforms = ModelTransformFactory()(model_config)
+
         return dataclasses.replace(
             self.create_base_config(assets_dirs, model_config),
             repack_transforms=repack_transform,
@@ -761,7 +815,35 @@ _CONFIGS = [
         pytorch_weight_path="/path/to/your/pytorch_weight_path",
         num_train_steps=30_000,
     ),
-    #
+    TrainConfig(
+        name="pi05_ur5_lora",
+        # pi0.5 + LoRA: pi05_libero settings + LoRA variants/freeze filter from the pi0 LoRA example.
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=10,
+            discrete_state_input=False,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ),
+        data=LeRobotUR5DataConfig(
+            repo_id="foodbanana/ur5_gripper_drone",
+            base_config=DataConfig(prompt_from_task=True),
+            extra_delta_transform=True,  # UR5 actions are absolute
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        # Freeze filter MUST match the model config above (same variants).
+        freeze_filter=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=10,
+            discrete_state_input=False,
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora",
+        ).get_freeze_filter(),
+        ema_decay=None,  # off for LoRA
+        num_train_steps=30_000,
+        batch_size=32,  # rehearsal: small; tune later
+    ),    
+    
     # Fine-tuning Aloha configs.
     #
     # This is a test config that is used to illustate how train on a custom LeRobot dataset.
