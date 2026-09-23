@@ -88,6 +88,11 @@ class DataConfig:
     # LeRobot dataset is using different keys to represent the action.
     action_sequence_keys: Sequence[str] = ("actions",)
 
+    # Video decoding backend passed to LeRobotDataset. None keeps LeRobot's default
+    # (torchcodec when it loads, else pyav). Set to "pyav" where no system FFmpeg 4-7
+    # is available; see docs/video_backend_ffmpeg.md.
+    video_backend: str | None = None
+
     # If true, will use the LeRobot dataset task to define the prompt.
     prompt_from_task: bool = False
 
@@ -832,7 +837,9 @@ _CONFIGS = [
         ),
         data=LeRobotUR5DataConfig(
             repo_id="foodbanana/ur5_gripper_drone_rehearsal",
-            base_config=DataConfig(prompt_from_task=True),
+            # pyav: the shared server has no system FFmpeg 4-7, so torchcodec cannot load
+            # there. Drop this once that is fixed -- see docs/video_backend_ffmpeg.md.
+            base_config=DataConfig(prompt_from_task=True, video_backend="pyav"),
             extra_delta_transform=True,  # UR5 actions are absolute
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
