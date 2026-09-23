@@ -826,7 +826,7 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotUR5DataConfig(
-            repo_id="foodbanana/ur5_gripper_drone",
+            repo_id="foodbanana/ur5_gripper_drone_rehearsal",
             base_config=DataConfig(prompt_from_task=True),
             extra_delta_transform=True,  # UR5 actions are absolute
         ),
