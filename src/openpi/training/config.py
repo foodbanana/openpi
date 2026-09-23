@@ -390,6 +390,10 @@ class LeRobotUR5DataConfig(DataConfigFactory):
                         "actions": "action",
                         "observation/base_image": "observation.images.third_view",
                         "observation/wrist_image": "observation.images.head",
+                        # PromptFromLeRobotTask puts this in upstream. RepackTransform keeps
+                        # only the keys listed here, so leaving it out drops the prompt and
+                        # TokenizePrompt later fails with "Prompt is required".
+                        "prompt": "prompt",
                     }
                 )
             ]
