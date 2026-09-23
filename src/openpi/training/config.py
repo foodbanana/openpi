@@ -366,6 +366,10 @@ class LeRobotUR5DataConfig(DataConfigFactory):
     # so convert arm joints to delta by default (gripper stays absolute).
     extra_delta_transform: bool = True
 
+    # LeRobotDataset reads the action sequence by raw column name, before the repack
+    # transform renames it -- this dataset's column is "action", not "actions".
+    action_sequence_keys: Sequence[str] = ("action",)
+
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         # Map YOUR LeRobot dataset column names -> keys UR5Inputs expects.
@@ -406,6 +410,7 @@ class LeRobotUR5DataConfig(DataConfigFactory):
             repack_transforms=repack_transform,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
+            action_sequence_keys=self.action_sequence_keys,
         )
 
 
@@ -842,8 +847,7 @@ _CONFIGS = [
         ema_decay=None,  # off for LoRA
         num_train_steps=30_000,
         batch_size=32,  # rehearsal: small; tune later
-    ),    
-    
+    ),
     # Fine-tuning Aloha configs.
     #
     # This is a test config that is used to illustate how train on a custom LeRobot dataset.
