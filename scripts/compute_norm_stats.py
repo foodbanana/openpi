@@ -5,6 +5,10 @@ will compute the mean and standard deviation of the data in the dataset and save
 to the config assets directory.
 """
 
+# pyarrow must be imported before jax: loading jax first makes a later pyarrow import
+# crash with a C++ symbol clash (silent segfault, exit 139) on some systems.
+import pyarrow as pa  # noqa: F401  # isort: skip
+
 import numpy as np
 import tqdm
 import tyro
