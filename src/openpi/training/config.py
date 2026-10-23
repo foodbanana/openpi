@@ -875,7 +875,8 @@ _CONFIGS = [
         # Full needs > 70 GB on one GPU; shard params, grads and optimizer state over two 48 GB GPUs.
         fsdp_devices=2,
         num_train_steps=30_000,
-        batch_size=32,
+        # 32 ran out of memory on 2 x 48 GB (step needs ~32 GB of activations, ~23 GB left per GPU).
+        batch_size=16,
     ),
     # Fine-tuning Aloha configs.
     #
