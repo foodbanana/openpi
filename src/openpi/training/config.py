@@ -859,6 +859,24 @@ _CONFIGS = [
         num_train_steps=30_000,
         batch_size=32,  # rehearsal: small; tune later
     ),
+    TrainConfig(
+        name="pi05_ur5",
+        # pi0.5 full fine-tune: same data and schedule as pi05_ur5_lora, without the LoRA
+        # variants and freeze filter, so every weight trains.
+        model=pi0_config.Pi0Config(pi05=True, action_horizon=10, discrete_state_input=False),
+        data=LeRobotUR5DataConfig(
+            repo_id="foodbanana/drone_grasp_tgt_hmid_first13",
+            base_config=DataConfig(prompt_from_task=True, video_backend="pyav"),
+            extra_delta_transform=True,
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        # Off to save memory: EMA keeps a second copy of all params.
+        ema_decay=None,
+        # Full needs > 70 GB on one GPU; shard params, grads and optimizer state over two 48 GB GPUs.
+        fsdp_devices=2,
+        num_train_steps=30_000,
+        batch_size=32,
+    ),
     # Fine-tuning Aloha configs.
     #
     # This is a test config that is used to illustate how train on a custom LeRobot dataset.
