@@ -35,12 +35,12 @@ class UR5Inputs(transforms.DataTransformFn):
     model_type: _model.ModelType
 
     def __call__(self, data: dict) -> dict:
-        # third_view (external, fixed) -> base_0_rgb ; head (wrist) -> left_wrist_0_rgb
+        # third_view (external, fixed) -> base_0_rgb ; wrist -> left_wrist_0_rgb
         base_image = _parse_image(data["observation/base_image"])
         wrist_image = _parse_image(data["observation/wrist_image"])
 
         inputs = {
-            # state = [6 joints (rad) + gripper (raw 0~1150)], already concatenated (7,).
+            # state = [6 joints (rad) + gripper (present / 1150, 0~1)], already concatenated (7,).
             # No pad_to_dim here — padding is handled downstream, same as LiberoInputs.
             "state": data["observation/state"],
             "image": {

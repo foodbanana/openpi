@@ -367,8 +367,8 @@ class LeRobotUR5DataConfig(DataConfigFactory):
     Mirrors LeRobotLiberoDataConfig; only the repack keys and delta default differ.
     """
 
-    # UR5 freedrive actions are absolute (next-frame joint targets),
-    # so convert arm joints to delta by default (gripper stays absolute).
+    # UR5 arm actions are absolute joint targets (teleop /joint_command, or next-frame
+    # joints for freedrive), so convert arm joints to delta by default (gripper stays absolute).
     extra_delta_transform: bool = True
 
     # LeRobotDataset reads the action sequence by raw column name, before the repack
@@ -381,7 +381,7 @@ class LeRobotUR5DataConfig(DataConfigFactory):
         #   observation.state                      -> observation/state
         #   action                                 -> actions
         #   observation.images.third_view (extern) -> observation/base_image
-        #   observation.images.head       (wrist)  -> observation/wrist_image
+        #   observation.images.wrist      (wrist)  -> observation/wrist_image
         repack_transform = _transforms.Group(
             inputs=[
                 _transforms.RepackTransform(
@@ -389,7 +389,7 @@ class LeRobotUR5DataConfig(DataConfigFactory):
                         "observation/state": "observation.state",
                         "actions": "action",
                         "observation/base_image": "observation.images.third_view",
-                        "observation/wrist_image": "observation.images.head",
+                        "observation/wrist_image": "observation.images.wrist",
                         # PromptFromLeRobotTask puts this in upstream. RepackTransform keeps
                         # only the keys listed here, so leaving it out drops the prompt and
                         # TokenizePrompt later fails with "Prompt is required".
@@ -840,7 +840,7 @@ _CONFIGS = [
             action_expert_variant="gemma_300m_lora",
         ),
         data=LeRobotUR5DataConfig(
-            repo_id="foodbanana/ur5_gripper_drone_rehearsal",
+            repo_id="foodbanana/drone_grasp_tgt_hmid_first13",
             # pyav: the shared server has no system FFmpeg 4-7, so torchcodec cannot load
             # there. Drop this once that is fixed -- see docs/video_backend_ffmpeg.md.
             base_config=DataConfig(prompt_from_task=True, video_backend="pyav"),

@@ -52,7 +52,7 @@ cd ~/.cache/huggingface/lerobot/foodbanana/<데이터셋이름>
 uv run --project ~/taeunglee/openpi python -c "
 from torchcodec.decoders import VideoDecoder
 from PIL import Image
-for cam in ('third_view','head'):
+for cam in ('third_view','wrist'):
     d = VideoDecoder(f'videos/chunk-000/observation.images.{cam}/episode_000000.mp4')
     Image.fromarray(d[len(d)//2].permute(1,2,0).numpy()).save(f'/tmp/check_{cam}.png')
 "
@@ -100,7 +100,8 @@ for k in ('state','actions'):
     print('  q99', [round(v,3) for v in d[k]['q99'][:7]])"
 ```
 
-그리퍼(7번째)는 `std` 가 크게 나오는 것이 정상이다. action 이 `{0, 1150}` 이진값이기 때문.
+그리퍼(7번째) action 은 `{0, 1}` 이진값이라 q01 0 / q99 1 이어야 한다 (닫힘 프레임이 1% 미만이면 q99 가 0 이 되어 정규화가 무너진다).
+(2026-09 리허설 데이터는 raw `{0, 1150}` 이었다. 2026-10-05 부터 데이터셋 그리퍼는 state 0~1, action {0, 1}.)
 
 ## 4. GPU 와 환경변수
 
@@ -213,7 +214,7 @@ uv run scripts/serve_policy.py policy:checkpoint \
 ```
 
 8000 포트로 열린다. 로봇 쪽 클라이언트는 [remote_inference.md](remote_inference.md) 참고.
-그리퍼는 학습 데이터에서 이진값이었으므로 추론 때도 이진화가 필요하다 — [examples/droid/main.py](../examples/droid/main.py) 에 예시가 있다.
+그리퍼는 학습 데이터에서 이진값 {0, 1} 이었으므로 추론 때도 이진화가 필요하다: 출력 0.5 기준으로 나눠 0 / 1150 을 `/gripper/command` 로 보낸다 — [examples/droid/main.py](../examples/droid/main.py) 에 예시가 있다.
 
 ---
 
